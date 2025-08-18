@@ -40,7 +40,14 @@ playground.xcworkspace
 # Pods/
 #
 # Add this line if you want to avoid checking in source code from the Xcode workspace
-# *.xcworkspace
+*.xcworkspace
+# adding this line to avoid checking in source code other similarly related files
+*.xcworkspacedata
+*.xcuserdata
+*.xcuserstate
+*.xccheckout
+DerivedData/
+
 
 # Carthage
 #
