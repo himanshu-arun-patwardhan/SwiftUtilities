@@ -11,7 +11,7 @@ let package = Package(
         .library(
             name: "SwiftUtilities",
             targets: ["SwiftUtilities"]
-        ),
+        )
     ],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
