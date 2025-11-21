@@ -48,3 +48,92 @@ Contributions, bug reports, and enhancements are welcome. Please open issues or 
 For questions, issues, or support, open a GitHub issue or contact [Himanshu Arun Patwardhan](https://github.com/himanshu-arun-patwardhan).
 
 ---
+
+## Usage Example
+
+This section documents the storing of token in the keychain and helpers required for testable abstraction.
+
+### Components
+
+- `TokenStoreKeys`
+  - A small enum of string constants used as key names when saving tokens to keychain storage.
+  - Example: `TokenStoreKeys.accessToken` is the key used for the access token.
+
+```swift
+enum TokenStoreKeys {
+    static let accessToken = "accessToken"
+}
+```  
+
+
+- `TokenStoreProtocol`
+  - Contract for a token store.
+  - Exposes a mutable `accessToken: String?` and a `clearAll()` method.
+
+```swift
+protocol TokenStoreProtocol {
+    var accessToken: String? { get set }
+    
+    func clearAll()
+}
+```
+
+
+- `TokenStore`
+  - A `final` singleton implementing `TokenStoreProtocol`.
+  - Uses a `KeychainStorageProtocol` implementation (by default `KeychainStorageManager`) to persist the token securely.
+  - Behaviour:
+    - Reading `accessToken` forwards to the underlying keychain storage.
+    - Setting `accessToken` saves to keychain; setting to `nil` deletes the key.
+    - `clearAll()` deletes the stored access token.
+   
+
+```swift
+final class TokenStore: TokenStoreProtocol {
+    static let shared = TokenStore()
+    ///
+    private let storage: KeychainStorageProtocol
+    
+    // MARK: -
+    init(storage: KeychainStorageProtocol = KeychainStorageManager()) {
+        self.storage = storage
+    }
+    
+    // MARK: -
+    var accessToken: String? {
+        get { storage.get(for: TokenStoreKeys.accessToken) }
+        set {
+            if let value = newValue {
+                storage.save(value, for: TokenStoreKeys.accessToken)
+            } else {
+                storage.delete(for: TokenStoreKeys.accessToken)
+            }
+        }
+    }
+
+    // MARK: -
+    func clearAll() {
+        storage.delete(for: TokenStoreKeys.accessToken)
+    }
+}
+```
+
+
+- `TokenService`
+  - An `@MainActor` `ObservableObject` wrapper around a `TokenStoreProtocol` instance.
+  - Intended to be used by networking code to save tokens returned from an auth endpoint.
+  - Contains a convenience method to persist a token into the store.
+
+The snippet shows a `saveToken(accessToken: String)` method that should save the passed-in token to the store. A concise implementation:
+
+```swift
+@MainActor
+class TokenService: ObservableObject {
+    private var tokenStore: TokenStoreProtocol = TokenStore.shared
+
+    // MARK: -
+    private func saveToken(accessToken: String) {
+        tokenStore.accessToken = accessToken
+    }
+}
+```
