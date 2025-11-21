@@ -51,9 +51,11 @@ For questions, issues, or support, open a GitHub issue or contact [Himanshu Arun
 
 ## Usage Example
 
+> ### Keychain storage
+
 This section documents the storing of token in the keychain and helpers required for testable abstraction.
 
-### Components
+#### Components
 
 - `TokenStoreKeys`
   - A small enum of string constants used as key names when saving tokens to keychain storage.
@@ -134,6 +136,97 @@ class TokenService: ObservableObject {
     // MARK: -
     private func saveToken(accessToken: String) {
         tokenStore.accessToken = accessToken
+    }
+}
+```
+
+##
+> ### UserDefaults storage
+This section documents the storing of user-information in the UserDefaults and helpers required for testable abstraction.
+
+#### Components
+
+- `UserInfoStoreKeys`
+  - A small enum of string constants used as key names when saving user-information to UserDefaults.
+  - Example: `UserInfoStoreKeys.userId` is the key used for the userId.
+
+```swift
+enum UserInfoStoreKeys {
+    static let userId = "userId"
+    static let username = "username"
+}
+```  
+
+
+- `UserInfoStoreProtocol`
+  - Contract for a user-information store.
+  - Exposes a mutable `userId: int?` `username: String?` and a `clearAll()` method.
+
+```swift
+protocol UserInfoStoreProtocol {
+    var userId: Int? { get set }
+    var username: String? { get set }
+    
+    func clearAll()
+}
+```
+
+
+- `UserInfoStore`
+  - A `final` singleton implementing `UserInfoStoreProtocol`.
+  - Uses a `UserDefaultsStorageProtocol` implementation (by default `UserDefaultsManager`) to persist the user-information.
+  - Behaviour:
+    - Reading `userId`, `username` forwards to the underlying UserDefaults.
+    - Setting `userId`, `username` saves to UserDefaults; setting to `nil` deletes the key.
+    - `clearAll()` deletes the stored user-information.
+   
+
+```swift
+truct UserInfoStore: UserInfoStoreProtocol {
+    static let shared = UserInfoStore()
+    ///
+    private let storage: UserDefaultsStorageProtocol
+    
+    // MARK: -
+    init(store: UserDefaultsStorageProtocol = UserDefaultsManager()) {
+        self.storage = store
+    }
+    
+    // MARK: -
+    var userId: Int? {
+        get { storage.get(forKey: UserInfoStoreKeys.userId) }
+        set { storage.set(newValue, forKey: UserInfoStoreKeys.userId) }
+    }
+    
+    var username: String? {
+        get { storage.get(forKey: UserInfoStoreKeys.username) }
+        set { storage.set(newValue, forKey: UserInfoStoreKeys.username) }
+    }
+
+    // MARK: -
+    func clearAll() {
+        storage.clearAll()
+    }
+}
+```
+
+
+- `UserInfoService`
+  - An `@MainActor` `ObservableObject` wrapper around a `UserInfoStoreProtocol` instance.
+  - Intended to be used by networking code to save user-information returned from an api endpoint.
+  - Contains a convenience method to persist a user-information into the UserDefaults.
+
+The snippet shows a `saveUserInfo(userId: String, username: String)` method that should save the passed-in user-information to the UserDefaults. A concise implementation:
+
+```swift
+@MainActor
+class UserInfoService: ObservableObject {
+    private var userInfoStore: UserInfoStoreProtocol = UserInfoStore.shared
+    
+    // MARK: -
+    private func saveUserInfo(userId: String, username: String) {
+        userInfoStore.userId = userId
+        userInfoStore.username = username
     }
 }
 ```
